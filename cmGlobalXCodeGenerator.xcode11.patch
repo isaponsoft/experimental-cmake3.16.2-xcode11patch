@@ -1,117 +1,79 @@
---- cmGlobalXCodeGenerator.cxx.orig	2019-12-19 23:54:31.000000000 +0900
-+++ cmGlobalXCodeGenerator.cxx	2020-01-08 20:16:51.000000000 +0900
-@@ -717,7 +717,7 @@
-   return obj;
- }
- 
--std::string GetGroupMapKeyFromPath(cmGeneratorTarget* target,
-+std::string GetGroupMapKeyFromPath(cmGeneratorTarget const* target,
-                                    const std::string& fullpath)
- {
-   std::string key(target->GetName());
-@@ -1334,9 +1334,41 @@
-     }
-   }
- 
-+  // Enumrate "Link Binary With Libraries"
-+  std::vector<std::string> linkbins;
-+  for (auto const& configName : this->CurrentConfigurationTypes) {
-+    cmComputeLinkInformation* pcli = gtgt->GetLinkInformation(configName);
-+    if (!pcli) {
-+      continue;
-+    }
-+	for (auto const& libName : pcli->GetItems()) {
-+	  auto stem = libName.Value.substr(libName.Value.find_last_of('/') + 1);
-+	  auto key = GetGroupMapKeyFromPath(libName.Target, stem);
-+	  auto it = std::find(linkbins.begin(), linkbins.end(), key);
-+	  if (it == linkbins.end())
-+	  {
-+	  	linkbins.push_back(key);
-+	  }
-+      cmXCodeObject* fileRef = nullptr;
-+      fileRef = this->CreateObject(cmXCodeObject::PBXFileReference);
-+      fileRef->SetComment(stem);
-+      this->FileRefs[key] = fileRef;
-+      cmXCodeObject* group = this->GroupMap[key];
-+
-+      fileRef->AddAttribute("explicitFileType", this->CreateString("archive.ar"));
-+      fileRef->AddAttribute("name", this->CreateString(stem));
-+      fileRef->AddAttribute("path", this->CreateString(stem));
-+      fileRef->AddAttribute("sourceTree", this->CreateString("BUILT_PRODUCTS_DIR"));
-+
-+      cmXCodeObject* buildFile = this->CreateObject(cmXCodeObject::PBXBuildFile);
-+      buildFile->SetComment(stem);
-+      buildFile->AddAttribute("fileRef", this->CreateObjectReference(fileRef));
-+	}
-+  }
-+
-   // create framework build phase
-   cmXCodeObject* frameworkBuildPhase = nullptr;
--  if (!externalObjFiles.empty()) {
-+  if (!externalObjFiles.empty() || !linkbins.empty()) {
-     frameworkBuildPhase =
-       this->CreateObject(cmXCodeObject::PBXFrameworksBuildPhase);
-     frameworkBuildPhase->SetComment("Frameworks");
-@@ -1347,6 +1379,16 @@
-     for (auto& externalObjFile : externalObjFiles) {
-       buildFiles->AddObject(externalObjFile);
-     }
-+
-+    // Add "Link Binary With Libraries"
-+    for (const auto& key : linkbins) {
-+	  auto fileRef = this->FileRefs[key];
-+	  cmXCodeObject* buildFile = this->CreateObject(cmXCodeObject::PBXBuildFile);
-+	  buildFile->SetComment(fileRef->GetComment());
-+	  buildFile->AddAttribute("fileRef", this->CreateObjectReference(fileRef));
-+      buildFiles->AddObject(buildFile);
-+    }
-+
-     frameworkBuildPhase->AddAttribute("runOnlyForDeploymentPostprocessing",
-                                       this->CreateString("0"));
-   }
-@@ -1956,7 +1998,6 @@
- 
-   // Store the product name for all target types.
-   buildSettings->AddAttribute("PRODUCT_NAME", this->CreateString(realName));
--  buildSettings->AddAttribute("SYMROOT", this->CreateString(pndir));
- 
-   // Handle settings for each target type.
-   switch (gtgt->GetType()) {
-@@ -2318,8 +2359,11 @@
-       extraLinkOptions += XCodeEscapePath(install_name);
-     }
-   }
-+#ifdef	XCODE11_NO_IOS_PATCH
-+  // INSTALL_PATH use xcode default.
-   buildSettings->AddAttribute("INSTALL_PATH",
-                               this->CreateString(install_name_dir));
-+#endif
- 
-   // Create the LD_RUNPATH_SEARCH_PATHS
-   cmComputeLinkInformation* pcli = gtgt->GetLinkInformation(configName);
-@@ -2804,6 +2848,7 @@
-                                         linkDirs.c_str(), configName);
-     }
- 
-+#ifdef	XCODE11_NO_IOS_PATCH
-     // now add the link libraries
-     {
-       std::string linkLibs;
-@@ -2825,6 +2870,7 @@
-       this->AppendBuildSettingAttribute(
-         target, this->GetTargetLinkFlagsVar(gt), linkLibs.c_str(), configName);
-     }
-+#endif
-   }
- }
- 
-@@ -3126,9 +3172,6 @@
-                                 this->CreateString(swiftVersion));
-   }
- 
--  std::string symroot = cmStrCat(root->GetCurrentBinaryDirectory(), "/build");
--  buildSettings->AddAttribute("SYMROOT", this->CreateString(symroot));
--
-   for (auto& config : configs) {
-     cmXCodeObject* buildSettingsForCfg = this->CreateFlatClone(buildSettings);
- 
+720c720
+< std::string GetGroupMapKeyFromPath(cmGeneratorTarget* target,
+---
+> std::string GetGroupMapKeyFromPath(cmGeneratorTarget const* target,
+1336a1337,1380
+>   // Enumrate "Link Binary With Libraries"
+>   std::vector<std::string> linkbins;
+>   for (auto const& configName : this->CurrentConfigurationTypes) {
+>     cmComputeLinkInformation* pcli = gtgt->GetLinkInformation(configName);
+>     if (!pcli) {
+>       continue;
+>     }
+> 	for (auto const& libName : pcli->GetItems()) {
+>       auto pos = libName.Value.find_last_of('/');
+>       if (pos == std::string::npos) {
+>         continue;
+>       }
+> 	  auto stem = libName.Value.substr(pos + 1);
+> 	  auto key = GetGroupMapKeyFromPath(libName.Target, stem);
+> 	  auto it = std::find(linkbins.begin(), linkbins.end(), key);
+> 	  if (it == linkbins.end())
+> 	  {
+> 	  	linkbins.push_back(key);
+> 	  }
+>       cmXCodeObject* fileRef = nullptr;
+>       auto refit = this->FileRefs.find(key);
+>       if (refit == this->FileRefs.end())
+>       {
+>         fileRef = this->CreateObject(cmXCodeObject::PBXFileReference);
+>         fileRef->SetComment(stem);
+>         this->FileRefs[key] = fileRef;
+>       }
+>       else
+>       {
+>         fileRef = refit->second;
+>       }
+>       cmXCodeObject* group = this->GroupMap[key];
+> 
+>       fileRef->AddAttribute("explicitFileType", this->CreateString("archive.ar"));
+>       fileRef->AddAttribute("name", this->CreateString(stem));
+>       fileRef->AddAttribute("path", this->CreateString(stem));
+>       fileRef->AddAttribute("sourceTree", this->CreateString("BUILT_PRODUCTS_DIR"));
+> 
+>       cmXCodeObject* buildFile = this->CreateObject(cmXCodeObject::PBXBuildFile);
+>       buildFile->SetComment(stem);
+>       buildFile->AddAttribute("fileRef", this->CreateObjectReference(fileRef));
+> 	}
+>   }
+> 
+1339c1383
+<   if (!externalObjFiles.empty()) {
+---
+>   if (!externalObjFiles.empty() || !linkbins.empty()) {
+1349a1394,1403
+> 
+>     // Add "Link Binary With Libraries"
+>     for (const auto& key : linkbins) {
+> 	  auto fileRef = this->FileRefs[key];
+> 	  cmXCodeObject* buildFile = this->CreateObject(cmXCodeObject::PBXBuildFile);
+> 	  buildFile->SetComment(fileRef->GetComment());
+> 	  buildFile->AddAttribute("fileRef", this->CreateObjectReference(fileRef));
+>       buildFiles->AddObject(buildFile);
+>     }
+> 
+1959d2012
+<   buildSettings->AddAttribute("SYMROOT", this->CreateString(pndir));
+2320a2374,2375
+> #ifdef	XCODE11_NO_IOS_PATCH
+>   // INSTALL_PATH use xcode default.
+2322a2378
+> #endif
+2806a2863
+> #ifdef	XCODE11_NO_IOS_PATCH
+2827a2885
+> #endif
+3128,3130d3185
+< 
+<   std::string symroot = cmStrCat(root->GetCurrentBinaryDirectory(), "/build");
+<   buildSettings->AddAttribute("SYMROOT", this->CreateString(symroot));
