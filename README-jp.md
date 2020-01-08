@@ -17,3 +17,8 @@ Build Phases の "Link Binary With Libraries" でstatic libraryを指定する�
 そこで、cmakeのcmGlobalXCodeGeneratorを少し細工してOTHER_LDFLAGSではなく、"Link Binary With Libraries"、すなわちFrameworkでリンクするようにします。
 
 こうすることで、INSTALL_PATHとSYMROOTは生成せずにxcodeの初期値でAechiveが通るようになります。
+
+## Feedback to cmake official
+
+パッチの権利などは特に主張しないので、大丈夫そうだったら私の代わりにフィードバックしてください。
+

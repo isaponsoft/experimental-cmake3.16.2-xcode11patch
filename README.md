@@ -16,3 +16,8 @@ Specifying a static library in "Link Binary With Libraries" of Build Phases seem
 Therefore, cmcmXCodeGenerator of cmake is slightly modified to link with "Link Binary With Libraries", that is, Framework instead of OTHER_LDFLAGS.
 
 By doing this, Aechive will be passed with the initial value of xcode without generating INSTALL_PATH and SYMROOT.
+
+## Feedback to cmake official
+
+We don't claim any rights to the patch, so if it looks okay please give feedback on my behalf.
+
