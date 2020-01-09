@@ -27,7 +27,4 @@ set_target_properties(
 )
 
 
-add_subdirectory(sub1)
-add_subdirectory(sub2)
-
-target_link_libraries(appmain sub1 sub2)
+target_link_libraries(appmain)

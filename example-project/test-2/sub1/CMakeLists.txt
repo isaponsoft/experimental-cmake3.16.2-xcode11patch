@@ -7,5 +7,12 @@ add_library(
 	src/func.cpp
 )
 
+
+
+set_target_properties(
+	sub1				PROPERTIES
+	XCODE_ATTRIBUTE_SKIP_INSTALL	"YES"
+)
+
 target_include_directories(sub1 PUBLIC inc)
 

@@ -12,5 +12,7 @@ set_target_properties(
 	XCODE_ATTRIBUTE_SKIP_INSTALL	"YES"
 )
 
+target_link_libraries(sub2 "System/Library/Frameworks/UIKit.framework")
+target_link_libraries(sub2 "System/Library/Frameworks/StoreKit.framework")
 target_include_directories(sub2 PUBLIC inc)
 
