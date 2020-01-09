@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# example work directory
+build-test-*
+cmGlobalXCodeGenerator.cpp
+cmGlobalXCodeGenerator.cpp.orig
+.DS_Store
